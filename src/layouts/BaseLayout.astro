@@ -1,0 +1,33 @@
+---
+import '../styles/global.css'
+
+type Props = {
+  title?: string
+  description?: string
+}
+
+const {
+  title = 'Quiz Simpsons',
+  description = 'Descubre qué personaje de Los Simpsons eres con un quiz rápido.',
+} = Astro.props
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+
+  <body>
+    <div class="flex min-h-screen flex-col justify-between bg-[#91D4F7]">
+      <slot name="nav" />
+      <main>
+        <slot />
+      </main>
+      <slot name="footer" />
+    </div>
+  </body>
+</html>
