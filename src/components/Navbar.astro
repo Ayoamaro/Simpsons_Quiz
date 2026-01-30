@@ -1,0 +1,70 @@
+---
+const links = [
+  { label: 'INICIO', href: '/' },
+  { label: 'PERSONAJES', href: '/#personajes' },
+]
+const currentPath = Astro.url.pathname
+---
+
+<header class="w-full py-4">
+  <nav class="mx-auto w-full max-w-6xl px-4">
+    <!-- Contenedor cartoon (pill) -->
+    <div
+      class="bg-white border-2 border-black rounded-2xl shadow-[4px_4px_0_#000] px-6 py-3 flex items-center justify-between"
+    >
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-3 select-none">
+        <img
+          src="./img/logo.png"
+          alt="Quiz Simpsons"
+          class="h-10 w-auto object-contain"
+        />
+      </a>
+
+      <!-- Links -->
+      <ul
+        class="hidden md:flex items-center gap-10 uppercase text-sm font-extrabold tracking-widest"
+      >
+        {
+          links.map((l) => {
+            const isActive = currentPath === l.href
+            return (
+              <li>
+                <a
+                  href={l.href}
+                  class:list={[
+                    'relative text-black',
+                    'after:absolute after:left-0 after:-bottom-1 after:h-0.75 after:w-full after:bg-black after:rounded-full',
+                    isActive
+                      ? 'after:opacity-100'
+                      : 'after:opacity-0 hover:after:opacity-100',
+                    'transition-opacity',
+                  ]}
+                >
+                  {l.label}
+                </a>
+              </li>
+            )
+          })
+        }
+      </ul>
+
+      <!-- Botón -->
+      <a
+        href="/quiz"
+        class="bg-[#F2F20D] text-black uppercase font-black tracking-widest px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#000] hover:brightness-95 transition-all hover:bg-[#91D4F7]"
+        aria-label="Empezar el quiz"
+      >
+        ¡EMPEZAR!
+      </a>
+    </div>
+  </nav>
+
+  <style>
+    /* Vibe cartoon (sin cargar fuentes externas) */
+    header :global(*) {
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+  </style>
+</header>
