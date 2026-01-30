@@ -1,0 +1,334 @@
+---
+type CharacterItem = {
+  name: string
+  occupation: string
+  portrait: string
+}
+
+const API_BASE = 'https://thesimpsonsapi.com/api/characters'
+const LIMIT = 10
+
+const safeText = (v: unknown, fallback = '') =>
+  typeof v === 'string' && v.trim().length > 0 ? v.trim() : fallback
+
+const toTitleCaseKeepAcronyms = (value: unknown) => {
+  const text = safeText(value)
+  if (!text) return ''
+
+  // separa por espacios, mantiene paréntesis y signos comunes
+  const words = text.split(/\s+/)
+
+  return words
+    .map((w) => {
+      const raw = w.trim()
+      if (!raw) return raw
+
+      // Mantener siglas (CTU, PETA, DGT, FBI, etc.)
+      const lettersOnly = raw.replace(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]/g, '')
+      if (
+        lettersOnly.length >= 2 &&
+        lettersOnly === lettersOnly.toUpperCase()
+      ) {
+        return raw
+      }
+
+      // Mantener palabras que ya parecen nombre propio con mayúscula interna (ej: McBain)
+      // (si no quieres esto, lo quitamos)
+      if (/[A-Z].*[A-Z]/.test(lettersOnly)) return raw
+
+      // Title Case normal, respetando el prefijo/sufijo de signos
+      const prefix = raw.match(/^[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+/)?.[0] ?? ''
+      const suffix = raw.match(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+$/)?.[0] ?? ''
+      const core = raw.slice(prefix.length, raw.length - suffix.length)
+
+      if (!core) return raw
+
+      const lower = core.toLowerCase()
+      return prefix + lower.charAt(0).toUpperCase() + lower.slice(1) + suffix
+    })
+    .join(' ')
+}
+
+const normalizePortrait = (p: unknown) => {
+  const s = safeText(p)
+  if (!s) return ''
+
+  // Si ya viene URL absoluta, úsala (y fuerza https si hace falta)
+  if (s.startsWith('http://')) return 'https://' + s.slice('http://'.length)
+  if (s.startsWith('https://')) return s
+
+  // Si viene relativo tipo "/character/1.webp"
+  const path = s.startsWith('/') ? s : `/${s}`
+
+  // ✅ Primero CDN (suele ser lo correcto)
+  // (puedes cambiar 500 por 300/800 según quieras)
+  return `https://cdn.thesimpsonsapi.com/500${path}`
+}
+
+const translateOccupation = (raw: unknown) => {
+  let o = safeText(raw, 'Personaje de Los Simpsons')
+  const upper = o.toUpperCase().trim()
+
+  // 1) Traducciones directas (frases completas comunes)
+  const directMap: Record<string, string> = {
+    'SAFETY INSPECTOR': 'Inspector de seguridad',
+    UNEMPLOYED: 'Desempleado/a',
+    UNKNOWN: 'Desconocido',
+    STUDENT: 'Estudiante',
+    'POLICE OFFICER': 'Policía',
+    DOCTOR: 'Doctor/a',
+    TEACHER: 'Profesor/a',
+    LAWYER: 'Abogado/a',
+    NURSE: 'Enfermero/a',
+    RETIRED: 'Jubilado/a',
+    HOUSEWIFE: 'Ama de casa',
+    'DMV EMPLOYEE': 'Empleado/a de la DGT',
+    'SPRINGFIELD DMV EMPLOYEE': 'Empleado/a de la DGT de Springfield',
+    'THE LEFTO RIUM (FORMERLY)': 'El Lefteorium (antes)',
+  }
+
+  if (directMap[upper]) return directMap[upper]
+
+  // 2) Reemplazos parciales
+  const replacements: Array<[RegExp, string]> = [
+    [
+      /STUDENT AT SPRINGFIELD ELEMENTARY SCHOOL/gi,
+      'Estudiante en la Escuela de Springfield',
+    ],
+    [/SPRINGFIELD ELEMENTARY SCHOOL/gi, 'Escuela de Springfield'],
+    [/ELEMENTARY SCHOOL/gi, 'Escuela primaria'],
+
+    [/RETIRED/gi, 'Jubilado/a'],
+    [/HOUSEWIFE/gi, 'Ama de casa'],
+    [/UNEMPLOYED/gi, 'Desempleado/a'],
+    [/UNKNOWN/gi, 'Desconocido'],
+
+    [/EMPLOYEE OF/gi, 'Empleado/a de'],
+    [/EMPLOYEE/gi, 'Empleado/a'],
+    [/DEPARTMENT OF/gi, 'Departamento de'],
+    [/MOTOR VEHICLES/gi, 'Vehículos motorizados'],
+    [/DMV/gi, 'DGT'],
+
+    [/\(FORMERLY\)/gi, '(antes)'],
+    [/FORMERLY/gi, 'antes'],
+
+    [/CTU AGENT/gi, 'Agente de la CTU'],
+    [/HALL-MONITOR/gi, 'Vigilante de pasillo'],
+    [/MEMBER OF PETA/gi, 'Miembro de PETA'],
+    [/MEMBER OF/gi, 'Miembro de'],
+  ]
+
+  for (const [rx, rep] of replacements) o = o.replace(rx, rep)
+
+  return o
+}
+
+// Placeholder SVG (por si falla la imagen)
+const placeholderDataUrl =
+  'data:image/svg+xml;charset=UTF-8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">
+      <rect width="100%" height="100%" fill="#f4f4f5"/>
+      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle"
+            font-family="Arial" font-size="18" fill="#a1a1aa">
+        Sin imagen
+      </text>
+    </svg>
+  `)
+
+// 1) Elegimos página (best-effort)
+let page = 1
+try {
+  const firstRes = await fetch(`${API_BASE}?page=1`)
+  const firstJson = await firstRes.json()
+
+  const totalPages =
+    Number(firstJson?.total_pages) ||
+    Number(firstJson?.totalPages) ||
+    Number(firstJson?.meta?.total_pages) ||
+    Number(firstJson?.meta?.totalPages) ||
+    Number(firstJson?.pagination?.total_pages) ||
+    Number(firstJson?.pagination?.totalPages)
+
+  if (Number.isFinite(totalPages) && totalPages > 1) {
+    page = Math.floor(Math.random() * totalPages) + 1
+  }
+} catch {
+  page = 1
+}
+
+// 2) Fetch personajes
+let rawCharacters: unknown[] = []
+try {
+  const res = await fetch(`${API_BASE}?page=${page}`)
+  const json = await res.json()
+
+  const list =
+    json?.data ||
+    json?.results ||
+    json?.characters ||
+    (Array.isArray(json) ? json : [])
+
+  rawCharacters = Array.isArray(list) ? list : []
+} catch {
+  rawCharacters = []
+}
+
+// 3) Normalizamos a nuestro tipo
+const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
+  const name = toTitleCaseKeepAcronyms(c?.name)
+  const occupation = toTitleCaseKeepAcronyms(translateOccupation(c?.occupation))
+  const portraitPath = safeText(c?.portrait_path, '')
+  const portrait = normalizePortrait(portraitPath)
+
+  return { name, occupation, portrait, portraitPath }
+})
+---
+
+<section class="w-full" id="personajes">
+  <div
+    class="mx-auto w-full max-w-5xl bg-yellow-400 border-4 border-black rounded-3xl shadow-xl
+         my-6 px-6 py-8 md:py-10 sm:mx-6 lg:mx-auto
+         overflow-x-hidden"
+  >
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1
+            class="text-3xl md:text-4xl font-extrabold italic text-center uppercase"
+          >
+            Conoce a los personajes
+          </h1>
+        </div>
+        <div class="mt-2 h-1 w-16 rounded bg-yellow-400"></div>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-2">
+        <button
+          type="button"
+          class="js-prev inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
+          aria-label="Anterior"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          class="js-next inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
+          aria-label="Siguiente"
+        >
+          →
+        </button>
+      </div>
+    </div>
+
+    <div class="relative mt-2">
+      <div
+        class="pointer-events-none absolute inset-y-0 left-0 w-10 bg-linear-to-r"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l"
+      >
+      </div>
+
+      <div
+        class="js-slider no-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth py-2"
+      >
+        {
+          items.length === 0 ? (
+            <div class="w-full rounded-xl border border-zinc-200 bg-white p-6 text-zinc-700">
+              No se pudieron cargar los personajes. Prueba a recargar.
+            </div>
+          ) : (
+            items.map((it) => (
+              <article class="min-w-55 max-w-55 snap-start rounded-2xl bg-white p-4 text-center ring-1 ring-zinc-100 bg-card text-card-foreground shadow-sm transition-all duration-300 group cursor-pointer hover:scale-105 hover:shadow-xl hover:bg-[#91D4F7]">
+                <div class="mx-auto grid h-36 w-36 place-items-center overflow-hidden rounded-full ring-2 ring-black/10 bg-white">
+                  {it.portrait ? (
+                    <img
+                      src={it.portrait}
+                      alt={`Retrato de ${it.name}`}
+                      class="h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      referrerpolicy="no-referrer"
+                      onerror={`this.onerror=null; this.src='${placeholderDataUrl}';`}
+                    />
+                  ) : (
+                    <div class="h-full w-full bg-zinc-100 grid place-items-center text-zinc-400 text-sm">
+                      Sin imagen
+                    </div>
+                  )}
+                </div>
+
+                <h3 class="mt-4 text-sm font-extrabold tracking-wide text-zinc-900">
+                  {it.name}
+                </h3>
+
+                <p class="mt-1 text-xs font-semibold tracking-wide text-zinc-500 line-clamp-3">
+                  {translateOccupation(it.occupation)}
+                </p>
+              </article>
+            ))
+          )
+        }
+      </div>
+    </div>
+
+    <div class="mt-6 flex sm:hidden items-center justify-center gap-2">
+      <button
+        type="button"
+        class="js-prev inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
+        aria-label="Anterior"
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        class="js-next inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
+        aria-label="Siguiente"
+      >
+        →
+      </button>
+    </div>
+  </div>
+
+  <script is:inline>
+    ;(() => {
+      const root = document.currentScript?.closest('section')
+      if (!root) return
+
+      const slider = root.querySelector('.js-slider')
+      const prev = root.querySelectorAll('.js-prev')
+      const next = root.querySelectorAll('.js-next')
+
+      if (!slider) return
+
+      const getStep = () => {
+        const firstCard = slider.querySelector('article')
+        if (!firstCard) return 260
+
+        const styles = window.getComputedStyle(slider)
+        const gap = parseFloat(styles.columnGap || styles.gap || '0') || 0
+
+        return firstCard.getBoundingClientRect().width + gap
+      }
+
+      const scrollByDir = (dir) => {
+        slider.scrollBy({ left: dir * getStep(), behavior: 'smooth' })
+      }
+
+      prev.forEach((b) => b.addEventListener('click', () => scrollByDir(-1)))
+      next.forEach((b) => b.addEventListener('click', () => scrollByDir(1)))
+    })()
+  </script>
+
+  <style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</section>
