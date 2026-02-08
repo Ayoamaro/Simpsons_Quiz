@@ -1,42 +1,68 @@
 ---
+/**
+ * Footer principal del proyecto
+ * ------------------------------------------------------
+ * - Presente en todas las páginas
+ * - Estilo cartoon consistente con la navbar
+ * - Año dinámico
+ */
+
+/**
+ * Año actual
+ * Se calcula en runtime para evitar hardcodear fechas
+ */
 const year = new Date().getFullYear()
+
+/**
+ * Clases reutilizables para links del footer
+ */
+const footerLink =
+  'relative text-black after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-full after:rounded-full after:bg-black after:opacity-0 hover:after:opacity-100 transition-opacity'
 ---
 
 <footer class="w-full py-6">
   <div class="mx-auto w-full max-w-6xl px-4">
+    <!--
+      Contenedor principal del footer
+      -------------------------------
+      - Layout responsive (columna / fila)
+      - Estilo cartoon con borde y sombra
+    -->
     <div
       class="flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-black bg-white px-6 py-4 shadow-[4px_4px_0_#000] md:flex-row"
     >
-      <!-- Left -->
+      <!--
+        Bloque izquierdo
+        ----------------
+        Copyright
+      -->
       <p
         class="text-center text-sm font-bold tracking-wide text-black md:text-left"
       >
         © {year}. The Simpsons Quiz
       </p>
 
-      <!-- Center -->
+      <!--
+        Bloque central
+        --------------
+        Mensaje decorativo / branding
+      -->
       <p
         class="text-center text-xs font-semibold tracking-widest text-black/80"
       >
         Hecho con 🍩 y mucho cariño
       </p>
 
-      <!-- Right -->
+      <!--
+        Bloque derecho
+        --------------
+        Navegación secundaria
+      -->
       <div
         class="flex items-center gap-4 text-xs font-extrabold uppercase tracking-widest"
       >
-        <a
-          href="/"
-          class="relative text-black after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-full after:rounded-full after:bg-black after:opacity-0 hover:after:opacity-100 transition-opacity"
-        >
-          Inicio
-        </a>
-        <a
-          href="/#personajes"
-          class="relative text-black after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-full after:rounded-full after:bg-black after:opacity-0 hover:after:opacity-100 transition-opacity"
-        >
-          Personajes
-        </a>
+        <a href="/" class={footerLink}>Inicio</a>
+        <a href="/#personajes" class={footerLink}>Personajes</a>
       </div>
     </div>
   </div>

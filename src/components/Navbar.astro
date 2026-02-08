@@ -1,47 +1,108 @@
 ---
+/**
+ * Navbar principal del proyecto
+ * ------------------------------------------------------
+ * - Presente en todas las páginas
+ * - CTA configurable (habilitado / deshabilitado)
+ */
+
+/**
+ * Links de navegación principales
+ * Se renderizan solo en desktop
+ */
 const links = [
   { label: 'INICIO', href: '/' },
   { label: 'PERSONAJES', href: '/#personajes' },
 ]
+
+/**
+ * Props del componente
+ * @property disableStart - Desactiva el botón ¡EMPEZAR!
+ */
+type Props = {
+  disableStart?: boolean
+}
+
+const { disableStart = false } = Astro.props
+
+/**
+ * Ruta actual
+ * Astro.url.pathname no incluye hashes (#)
+ */
 const currentPath = Astro.url.pathname
+
+/**
+ * Clases base del botón CTA
+ * Se reutilizan para evitar duplicación
+ */
+const startBase =
+  'text-black uppercase font-black tracking-widest px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0_#000] transition-all'
+
+/**
+ * Variantes del botón CTA
+ */
+const startEnabled =
+  'bg-[#F2F20D] hover:brightness-95 hover:bg-[#91D4F7] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#000]'
+const startDisabled = 'bg-[#F2F20D]/60 opacity-70 cursor-not-allowed'
 ---
 
 <header class="w-full py-4">
   <nav class="mx-auto w-full max-w-6xl px-4">
-    <!-- Contenedor cartoon (pill) -->
+    <!--
+      Contenedor principal estilo cartoon
+      -----------------------------------
+      - Borde negro
+      - Esquinas redondeadas
+      - Sombra tipo ilustración
+    -->
     <div
-      class="bg-white border-2 border-black rounded-2xl shadow-[4px_4px_0_#000] px-6 py-3 flex items-center justify-between"
+      class="flex items-center justify-between rounded-2xl border-2 border-black bg-white px-6 py-3 shadow-[4px_4px_0_#000]"
     >
-      <!-- Logo -->
-      <a href="/" class="flex items-center gap-3 select-none">
+      <!--
+        Logo principal
+        --------------
+        - Enlace a home
+        - Evita selección de texto
+      -->
+      <a href="/" class="flex select-none items-center gap-3">
         <img
-          src="./img/logo.png"
+          src="/img/logo.png"
           alt="Quiz Simpsons"
           class="h-10 w-auto object-contain"
         />
       </a>
 
-      <!-- Links -->
+      <!--
+        Navegación desktop
+        ------------------
+        - Oculta en mobile
+        - Subrayado animado con pseudo-elemento
+        - Marca visual del link activo
+      -->
       <ul
-        class="hidden md:flex items-center gap-10 uppercase text-sm font-extrabold tracking-widest"
+        class="hidden items-center gap-10 text-sm font-extrabold uppercase tracking-widest md:flex"
       >
         {
-          links.map((l) => {
-            const isActive = currentPath === l.href
+          links.map(({ label, href }) => {
+            /**
+             * Eliminamos el hash para comparar correctamente
+             * /#personajes -> /
+             */
+            const hrefPath = href.split('#')[0]
+            const isActive = currentPath === hrefPath
+
             return (
               <li>
                 <a
-                  href={l.href}
+                  href={href}
                   class:list={[
-                    'relative text-black',
-                    'after:absolute after:left-0 after:-bottom-1 after:h-0.75 after:w-full after:bg-black after:rounded-full',
+                    'relative text-black after:absolute after:left-0 after:-bottom-1 after:h-0.75 after:w-full after:rounded-full after:bg-black transition-opacity',
                     isActive
                       ? 'after:opacity-100'
                       : 'after:opacity-0 hover:after:opacity-100',
-                    'transition-opacity',
                   ]}
                 >
-                  {l.label}
+                  {label}
                 </a>
               </li>
             )
@@ -49,19 +110,42 @@ const currentPath = Astro.url.pathname
         }
       </ul>
 
-      <!-- Botón -->
-      <a
-        href="/quiz"
-        class="bg-[#F2F20D] text-black uppercase font-black tracking-widest px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_#000] hover:brightness-95 transition-all hover:bg-[#91D4F7]"
-        aria-label="Empezar el quiz"
-      >
-        ¡EMPEZAR!
-      </a>
+      <!--
+        CTA ¡EMPEZAR!
+        -------------
+        - Botón desactivado durante el loading
+        - Link activo cuando se puede iniciar el quiz
+      -->
+      {
+        disableStart ? (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Ahora mismo está desactivado"
+            class:list={[startBase, startDisabled]}
+          >
+            ¡EMPEZAR!
+          </button>
+        ) : (
+          <a
+            href="/quiz"
+            aria-label="Empezar el quiz"
+            class:list={[startBase, startEnabled]}
+          >
+            ¡EMPEZAR!
+          </a>
+        )
+      }
     </div>
   </nav>
 
+  <!--
+    Ajustes tipográficos globales del header
+    ---------------------------------------
+    Mejora el renderizado de fuentes
+  -->
   <style>
-    /* Vibe cartoon (sin cargar fuentes externas) */
     header :global(*) {
       -webkit-font-smoothing: antialiased;
       text-rendering: geometricPrecision;
