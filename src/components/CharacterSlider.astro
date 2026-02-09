@@ -1,129 +1,81 @@
 ---
+/**
+ * CharacterSlider.astro
+ * ------------------------------------------------------
+ * - Slider horizontal con personajes aleatorios de la API
+ * - Mantiene los datos en INGLÉS (como vienen de la API)
+ * - Normaliza:
+ *   - name -> Title Case (respetando acrónimos)
+ *   - occupation -> Title Case (respetando acrónimos)
+ *   - portrait_path -> URL válida (CDN / https)
+ */
+
 type CharacterItem = {
   name: string
   occupation: string
   portrait: string
 }
 
-const API_BASE = 'https://thesimpsonsapi.com/api/characters'
+const API = 'https://thesimpsonsapi.com/api/characters'
 const LIMIT = 10
 
-const safeText = (v: unknown, fallback = '') =>
-  typeof v === 'string' && v.trim().length > 0 ? v.trim() : fallback
+/**
+ * String seguro con trim + fallback
+ */
+const safe = (v: unknown, fb = '') =>
+  typeof v === 'string' && v.trim() ? v.trim() : fb
 
-const toTitleCaseKeepAcronyms = (value: unknown) => {
-  const text = safeText(value)
+/**
+ * Title Case manteniendo acrónimos (FBI, NASA, etc.)
+ * - Conserva símbolos/puntuación tal cual
+ * - Solo transforma palabras que no parecen acrónimos
+ */
+const titleCase = (v: unknown) => {
+  const text = safe(v)
   if (!text) return ''
 
-  // separa por espacios, mantiene paréntesis y signos comunes
-  const words = text.split(/\s+/)
+  return text
+    .split(/\s+/)
+    .map((raw) => {
+      const word = raw.trim()
+      if (!word) return word
 
-  return words
-    .map((w) => {
-      const raw = w.trim()
-      if (!raw) return raw
+      // Extrae solo letras para detectar acrónimos
+      const letters = word.replace(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]/g, '')
+      const isAcronym =
+        letters.length >= 2 &&
+        (letters === letters.toUpperCase() || /[A-Z].*[A-Z]/.test(letters))
 
-      // Mantener siglas (CTU, PETA, DGT, FBI, etc.)
-      const lettersOnly = raw.replace(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]/g, '')
-      if (
-        lettersOnly.length >= 2 &&
-        lettersOnly === lettersOnly.toUpperCase()
-      ) {
-        return raw
-      }
+      if (isAcronym) return word
 
-      // Mantener palabras que ya parecen nombre propio con mayúscula interna (ej: McBain)
-      // (si no quieres esto, lo quitamos)
-      if (/[A-Z].*[A-Z]/.test(lettersOnly)) return raw
-
-      // Title Case normal, respetando el prefijo/sufijo de signos
-      const prefix = raw.match(/^[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+/)?.[0] ?? ''
-      const suffix = raw.match(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+$/)?.[0] ?? ''
-      const core = raw.slice(prefix.length, raw.length - suffix.length)
-
-      if (!core) return raw
+      // Respeta prefijos/sufijos de signos (ej: "(teacher)")
+      const prefix = word.match(/^[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+/)?.[0] ?? ''
+      const suffix = word.match(/[^a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]+$/)?.[0] ?? ''
+      const core = word.slice(prefix.length, word.length - suffix.length)
+      if (!core) return word
 
       const lower = core.toLowerCase()
-      return prefix + lower.charAt(0).toUpperCase() + lower.slice(1) + suffix
+      return prefix + lower[0].toUpperCase() + lower.slice(1) + suffix
     })
     .join(' ')
 }
 
-const normalizePortrait = (p: unknown) => {
-  const s = safeText(p)
+/**
+ * Normaliza el retrato:
+ * - http -> https
+ * - path relativo -> CDN 500px
+ */
+const portraitUrl = (p: unknown) => {
+  const s = safe(p)
   if (!s) return ''
-
-  // Si ya viene URL absoluta, úsala (y fuerza https si hace falta)
-  if (s.startsWith('http://')) return 'https://' + s.slice('http://'.length)
+  if (s.startsWith('http://')) return `https://${s.slice(7)}`
   if (s.startsWith('https://')) return s
-
-  // Si viene relativo tipo "/character/1.webp"
-  const path = s.startsWith('/') ? s : `/${s}`
-
-  // ✅ Primero CDN (suele ser lo correcto)
-  // (puedes cambiar 500 por 300/800 según quieras)
-  return `https://cdn.thesimpsonsapi.com/500${path}`
+  return `https://cdn.thesimpsonsapi.com/500${s.startsWith('/') ? s : `/${s}`}`
 }
 
-const translateOccupation = (raw: unknown) => {
-  let o = safeText(raw, 'Personaje de Los Simpsons')
-  const upper = o.toUpperCase().trim()
-
-  // 1) Traducciones directas (frases completas comunes)
-  const directMap: Record<string, string> = {
-    'SAFETY INSPECTOR': 'Inspector de seguridad',
-    UNEMPLOYED: 'Desempleado/a',
-    UNKNOWN: 'Desconocido',
-    STUDENT: 'Estudiante',
-    'POLICE OFFICER': 'Policía',
-    DOCTOR: 'Doctor/a',
-    TEACHER: 'Profesor/a',
-    LAWYER: 'Abogado/a',
-    NURSE: 'Enfermero/a',
-    RETIRED: 'Jubilado/a',
-    HOUSEWIFE: 'Ama de casa',
-    'DMV EMPLOYEE': 'Empleado/a de la DGT',
-    'SPRINGFIELD DMV EMPLOYEE': 'Empleado/a de la DGT de Springfield',
-    'THE LEFTO RIUM (FORMERLY)': 'El Lefteorium (antes)',
-  }
-
-  if (directMap[upper]) return directMap[upper]
-
-  // 2) Reemplazos parciales
-  const replacements: Array<[RegExp, string]> = [
-    [
-      /STUDENT AT SPRINGFIELD ELEMENTARY SCHOOL/gi,
-      'Estudiante en la Escuela de Springfield',
-    ],
-    [/SPRINGFIELD ELEMENTARY SCHOOL/gi, 'Escuela de Springfield'],
-    [/ELEMENTARY SCHOOL/gi, 'Escuela primaria'],
-
-    [/RETIRED/gi, 'Jubilado/a'],
-    [/HOUSEWIFE/gi, 'Ama de casa'],
-    [/UNEMPLOYED/gi, 'Desempleado/a'],
-    [/UNKNOWN/gi, 'Desconocido'],
-
-    [/EMPLOYEE OF/gi, 'Empleado/a de'],
-    [/EMPLOYEE/gi, 'Empleado/a'],
-    [/DEPARTMENT OF/gi, 'Departamento de'],
-    [/MOTOR VEHICLES/gi, 'Vehículos motorizados'],
-    [/DMV/gi, 'DGT'],
-
-    [/\(FORMERLY\)/gi, '(antes)'],
-    [/FORMERLY/gi, 'antes'],
-
-    [/CTU AGENT/gi, 'Agente de la CTU'],
-    [/HALL-MONITOR/gi, 'Vigilante de pasillo'],
-    [/MEMBER OF PETA/gi, 'Miembro de PETA'],
-    [/MEMBER OF/gi, 'Miembro de'],
-  ]
-
-  for (const [rx, rep] of replacements) o = o.replace(rx, rep)
-
-  return o
-}
-
-// Placeholder SVG (por si falla la imagen)
+/**
+ * Placeholder embebido si falla la imagen
+ */
 const placeholderDataUrl =
   'data:image/svg+xml;charset=UTF-8,' +
   encodeURIComponent(`
@@ -131,93 +83,93 @@ const placeholderDataUrl =
       <rect width="100%" height="100%" fill="#f4f4f5"/>
       <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle"
             font-family="Arial" font-size="18" fill="#a1a1aa">
-        Sin imagen
+        No image
       </text>
     </svg>
   `)
 
-// 1) Elegimos página (best-effort)
-let page = 1
-try {
-  const firstRes = await fetch(`${API_BASE}?page=1`)
-  const firstJson = await firstRes.json()
+/**
+ * Obtiene una página aleatoria leyendo total_pages
+ * Si falla, cae a la primera página.
+ */
+const getRandomPage = async () => {
+  try {
+    const r = await fetch(`${API}?page=1`)
+    const j = await r.json()
+    const total =
+      Number(j?.total_pages) ||
+      Number(j?.totalPages) ||
+      Number(j?.meta?.total_pages) ||
+      Number(j?.meta?.totalPages) ||
+      Number(j?.pagination?.total_pages) ||
+      Number(j?.pagination?.totalPages)
 
-  const totalPages =
-    Number(firstJson?.total_pages) ||
-    Number(firstJson?.totalPages) ||
-    Number(firstJson?.meta?.total_pages) ||
-    Number(firstJson?.meta?.totalPages) ||
-    Number(firstJson?.pagination?.total_pages) ||
-    Number(firstJson?.pagination?.totalPages)
-
-  if (Number.isFinite(totalPages) && totalPages > 1) {
-    page = Math.floor(Math.random() * totalPages) + 1
+    return Number.isFinite(total) && total > 1
+      ? Math.floor(Math.random() * total) + 1
+      : 1
+  } catch {
+    return 1
   }
-} catch {
-  page = 1
 }
 
-// 2) Fetch personajes
-let rawCharacters: unknown[] = []
-try {
-  const res = await fetch(`${API_BASE}?page=${page}`)
-  const json = await res.json()
+const page = await getRandomPage()
 
-  const list =
-    json?.data ||
-    json?.results ||
-    json?.characters ||
-    (Array.isArray(json) ? json : [])
+/**
+ * Descarga y normaliza personajes (name/occupation/portrait)
+ */
+const fetchCharacters = async (): Promise<CharacterItem[]> => {
+  try {
+    const r = await fetch(`${API}?page=${page}`)
+    const j = await r.json()
+    const list =
+      j?.data || j?.results || j?.characters || (Array.isArray(j) ? j : [])
+    const arr = Array.isArray(list) ? list : []
 
-  rawCharacters = Array.isArray(list) ? list : []
-} catch {
-  rawCharacters = []
+    return arr.slice(0, LIMIT).map((c: any) => ({
+      name: titleCase(c?.name),
+      occupation: titleCase(c?.occupation),
+      portrait: portraitUrl(c?.portrait_path),
+    }))
+  } catch {
+    return []
+  }
 }
 
-// 3) Normalizamos a nuestro tipo
-const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
-  const name = toTitleCaseKeepAcronyms(c?.name)
-  const occupation = toTitleCaseKeepAcronyms(translateOccupation(c?.occupation))
-  const portraitPath = safeText(c?.portrait_path, '')
-  const portrait = normalizePortrait(portraitPath)
+const items = await fetchCharacters()
 
-  return { name, occupation, portrait, portraitPath }
-})
+/**
+ * Clases reutilizables (menos repetición)
+ */
+const btnBase =
+  'inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95'
+const cardBase =
+  'min-w-55 max-w-55 snap-start rounded-2xl bg-white p-4 text-center ring-1 ring-zinc-100 shadow-sm transition-all duration-300 group cursor-pointer hover:scale-105 hover:shadow-xl hover:bg-[#91D4F7]'
 ---
 
 <section class="w-full" id="personajes">
   <div
-    class="mx-auto w-full max-w-5xl bg-yellow-400 border-4 border-black rounded-3xl shadow-xl
-         my-6 px-6 py-8 md:py-10 sm:mx-6 lg:mx-auto
-         overflow-x-hidden"
+    class="mx-auto my-6 w-full max-w-5xl overflow-x-hidden rounded-3xl border-4 border-black bg-yellow-400 px-6 py-8 shadow-xl sm:mx-6 md:py-10 lg:mx-auto"
   >
     <div class="flex items-end justify-between gap-4">
       <div>
-        <div class="flex items-center gap-2">
-          <h1
-            class="text-3xl md:text-4xl font-extrabold italic text-center uppercase"
-          >
-            Conoce a los personajes
-          </h1>
-        </div>
+        <h1
+          class="text-center text-3xl font-extrabold italic uppercase md:text-4xl"
+        >
+          Conoce a los personajes
+        </h1>
         <div class="mt-2 h-1 w-16 rounded bg-yellow-400"></div>
       </div>
 
-      <div class="hidden sm:flex items-center gap-2">
+      <!-- Controls (desktop) -->
+      <div class="hidden items-center gap-2 sm:flex">
+        <button type="button" class={`js-prev ${btnBase}`} aria-label="Anterior"
+          >←</button
+        >
         <button
           type="button"
-          class="js-prev inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
-          aria-label="Anterior"
+          class={`js-next ${btnBase}`}
+          aria-label="Siguiente">→</button
         >
-          ←
-        </button>
-        <button
-          type="button"
-          class="js-next inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
-          aria-label="Siguiente"
-        >
-          →
-        </button>
       </div>
     </div>
 
@@ -241,12 +193,12 @@ const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
             </div>
           ) : (
             items.map((it) => (
-              <article class="min-w-55 max-w-55 snap-start rounded-2xl bg-white p-4 text-center ring-1 ring-zinc-100 bg-card text-card-foreground shadow-sm transition-all duration-300 group cursor-pointer hover:scale-105 hover:shadow-xl hover:bg-[#91D4F7]">
-                <div class="mx-auto grid h-36 w-36 place-items-center overflow-hidden rounded-full ring-2 ring-black/10 bg-white">
+              <article class={cardBase}>
+                <div class="mx-auto grid h-36 w-36 place-items-center overflow-hidden rounded-full bg-white ring-2 ring-black/10">
                   {it.portrait ? (
                     <img
                       src={it.portrait}
-                      alt={`Retrato de ${it.name}`}
+                      alt={`Portrait of ${it.name}`}
                       class="h-full w-full object-cover"
                       loading="lazy"
                       decoding="async"
@@ -254,8 +206,8 @@ const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
                       onerror={`this.onerror=null; this.src='${placeholderDataUrl}';`}
                     />
                   ) : (
-                    <div class="h-full w-full bg-zinc-100 grid place-items-center text-zinc-400 text-sm">
-                      Sin imagen
+                    <div class="grid h-full w-full place-items-center bg-zinc-100 text-sm text-zinc-400">
+                      No image
                     </div>
                   )}
                 </div>
@@ -264,8 +216,8 @@ const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
                   {it.name}
                 </h3>
 
-                <p class="mt-1 text-xs font-semibold tracking-wide text-zinc-500 line-clamp-3">
-                  {translateOccupation(it.occupation)}
+                <p class="mt-1 line-clamp-3 text-xs font-semibold tracking-wide text-zinc-500">
+                  {it.occupation}
                 </p>
               </article>
             ))
@@ -274,51 +226,49 @@ const items: CharacterItem[] = rawCharacters.slice(0, LIMIT).map((c: any) => {
       </div>
     </div>
 
-    <div class="mt-6 flex sm:hidden items-center justify-center gap-2">
-      <button
-        type="button"
-        class="js-prev inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
-        aria-label="Anterior"
+    <!-- Controls (mobile) -->
+    <div class="mt-6 flex items-center justify-center gap-2 sm:hidden">
+      <button type="button" class={`js-prev ${btnBase}`} aria-label="Anterior"
+        >←</button
       >
-        ←
-      </button>
-      <button
-        type="button"
-        class="js-next inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 active:scale-95"
-        aria-label="Siguiente"
+      <button type="button" class={`js-next ${btnBase}`} aria-label="Siguiente"
+        >→</button
       >
-        →
-      </button>
     </div>
   </div>
 
   <script is:inline>
+    /**
+     * Slider controls
+     * - Calcula el “paso” según ancho real de una card + gap
+     * - Soporta botones duplicados (desktop / mobile)
+     */
     ;(() => {
       const root = document.currentScript?.closest('section')
-      if (!root) return
+      const slider = root?.querySelector('.js-slider')
+      if (!root || !slider) return
 
-      const slider = root.querySelector('.js-slider')
-      const prev = root.querySelectorAll('.js-prev')
-      const next = root.querySelectorAll('.js-next')
-
-      if (!slider) return
+      const prevButtons = root.querySelectorAll('.js-prev')
+      const nextButtons = root.querySelectorAll('.js-next')
 
       const getStep = () => {
-        const firstCard = slider.querySelector('article')
-        if (!firstCard) return 260
-
+        const card = slider.querySelector('article')
+        if (!card) return 260
         const styles = window.getComputedStyle(slider)
         const gap = parseFloat(styles.columnGap || styles.gap || '0') || 0
-
-        return firstCard.getBoundingClientRect().width + gap
+        return card.getBoundingClientRect().width + gap
       }
 
       const scrollByDir = (dir) => {
         slider.scrollBy({ left: dir * getStep(), behavior: 'smooth' })
       }
 
-      prev.forEach((b) => b.addEventListener('click', () => scrollByDir(-1)))
-      next.forEach((b) => b.addEventListener('click', () => scrollByDir(1)))
+      prevButtons.forEach((b) =>
+        b.addEventListener('click', () => scrollByDir(-1))
+      )
+      nextButtons.forEach((b) =>
+        b.addEventListener('click', () => scrollByDir(1))
+      )
     })()
   </script>
 
