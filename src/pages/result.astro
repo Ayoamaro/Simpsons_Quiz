@@ -1,0 +1,67 @@
+---
+/**
+ * result.astro
+ * ------------------------------------------------------
+ * Página de resultado final:
+ * - Lee el id desde ?id=
+ * - Pide el personaje a la API
+ * - Renderiza ResultCard o fallback si no existe
+ */
+
+export const prerender = false
+
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Navbar from '../components/Navbar.astro'
+import Footer from '../components/Footer.astro'
+import ResultCard from '../components/ResultCard.astro'
+
+const API_BASE =
+  import.meta.env.PUBLIC_API_BASE ?? 'https://thesimpsonsapi.com/api'
+const id = Astro.url.searchParams.get('id')
+
+/**
+ * Carga personaje por id (fallback a null si falla)
+ */
+let character: any = null
+
+if (id) {
+  try {
+    const res = await fetch(`${API_BASE}/characters/${encodeURIComponent(id)}`)
+    if (res.ok) character = await res.json()
+  } catch {
+    character = null
+  }
+}
+
+/**
+ * Clases reutilizables
+ */
+const cta =
+  'inline-flex mt-6 bg-[#F2F20D] text-black uppercase font-black tracking-widest px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0_#000] hover:brightness-95 transition-all'
+---
+
+<BaseLayout title="The Simpsons Quiz">
+  <Navbar slot="nav" />
+
+  <main class="px-4 py-10">
+    <div class="mx-auto w-full max-w-3xl">
+      {
+        character ? (
+          <ResultCard character={character} />
+        ) : (
+          <div class="rounded-3xl border-2 border-black bg-white p-8 text-center shadow-[6px_6px_0_#000]">
+            <p class="text-lg font-extrabold">No se encontró el resultado 😅</p>
+            <p class="mt-2 text-sm opacity-80">
+              Vuelve a hacer el test para generar un personaje.
+            </p>
+            <a href="/quiz" class={cta}>
+              Repetir test
+            </a>
+          </div>
+        )
+      }
+    </div>
+  </main>
+
+  <Footer slot="footer" />
+</BaseLayout>
