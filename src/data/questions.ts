@@ -127,7 +127,7 @@ export const QUESTIONS: Question[] = [
 
   {
     id: 'q4',
-    text: 'En el trabajo/estudio tú…',
+    text: 'En el trabajo/estudio…',
     answers: [
       {
         id: 'q4a1',
