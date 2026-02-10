@@ -1,0 +1,36 @@
+---
+/**
+ * QuizLayout.astro
+ * ------------------------------------------------------
+ * Layout intermedio para pantallas del quiz:
+ * - Reutiliza BaseLayout (SEO title/description)
+ * - Inserta slots de nav/footer
+ * - Envuelve el contenido en un panel centrado
+ */
+
+import BaseLayout from './BaseLayout.astro'
+
+type Props = {
+  title?: string
+  description?: string
+}
+
+const { title = 'Quiz — Simpsons', description } = Astro.props
+---
+
+<BaseLayout title={title} description={description}>
+  <!-- Navbar (slot opcional) -->
+  <slot name="nav" />
+
+  <main class="flex-1 px-4 py-8 sm:px-6 sm:py-10">
+    <!-- Panel principal centrado -->
+    <section
+      class="mx-auto w-full max-w-5xl rounded-3xl border-2 border-black bg-white/80 px-4 py-6 shadow-xl backdrop-blur sm:px-8 sm:py-8"
+    >
+      <slot />
+    </section>
+  </main>
+
+  <!-- Footer (slot opcional) -->
+  <slot name="footer" />
+</BaseLayout>

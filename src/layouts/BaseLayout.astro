@@ -1,4 +1,12 @@
 ---
+/**
+ * BaseLayout.astro
+ * ------------------------------------------------------
+ * Layout raíz de la aplicación.
+ * - Define HTML base, SEO y estilos globales
+ * - Proporciona slots para nav, contenido y footer
+ */
+
 import '../styles/global.css'
 
 type Props = {
@@ -15,18 +23,27 @@ const {
 <!doctype html>
 <html lang="es">
   <head>
+    <!-- Meta básicos -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+
+    <!-- Title -->
     <title>{title}</title>
   </head>
 
   <body>
+    <!-- App wrapper -->
     <div class="flex min-h-screen flex-col justify-between bg-[#91D4F7]">
+      <!-- Navbar -->
       <slot name="nav" />
+
+      <!-- Contenido principal -->
       <main>
         <slot />
       </main>
+
+      <!-- Footer -->
       <slot name="footer" />
     </div>
   </body>
