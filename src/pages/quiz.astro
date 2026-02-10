@@ -1,0 +1,27 @@
+---
+/**
+ * quiz.astro
+ * ------------------------------------------------------
+ * Página principal del quiz:
+ * - Renderiza el motor React (QuizEngine) en cliente
+ * - Desactiva el botón "¡EMPEZAR!" en la navbar durante el quiz
+ */
+
+import QuizLayout from '../layouts/QuizLayout.astro'
+import Navbar from '../components/Navbar.astro'
+import Footer from '../components/Footer.astro'
+
+import QuizEngine from '../components/quiz/QuizEngine.tsx'
+import { QUESTIONS } from '../data/questions'
+---
+
+<QuizLayout title="The Simpsons Quiz">
+  <!-- Navbar (CTA desactivado durante el quiz) -->
+  <Navbar slot="nav" disableStart />
+
+  <!-- Motor del quiz (React) -->
+  <QuizEngine client:load questions={QUESTIONS} total={5} />
+
+  <!-- Footer -->
+  <Footer slot="footer" />
+</QuizLayout>
