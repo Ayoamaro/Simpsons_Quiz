@@ -1,4 +1,13 @@
 ---
+/**
+ * LoadingResults.astro
+ * ------------------------------------------------------
+ * Pantalla de carga “cartoon” mientras se calcula el resultado.
+ * - Planeta con nubes + anillo giratorio
+ * - Mascota centrada (placeholder o personaje)
+ * - Tarjeta de progreso (porcentaje + barra)
+ */
+
 type Props = {
   title?: string
   subtitle?: string
@@ -12,39 +21,48 @@ const {
   hint = '¡Excelente! Los niveles de radioactividad son normales.',
   mascotImage = '/img/placeholder-character.webp',
 } = Astro.props
+
+/**
+ * Nubes decorativas del “planeta”
+ * Se renderizan con map para evitar repetición de markup.
+ */
+const clouds = [
+  { cls: 'left-8 top-16 h-16 w-28' },
+  { cls: 'left-20 top-10 h-14 w-24' },
+  { cls: 'right-10 bottom-14 h-16 w-28' },
+  { cls: 'right-20 bottom-9 h-14 w-24' },
+]
+
+/**
+ * Clases reutilizables
+ */
+const stickerBase =
+  'absolute border-2 border-black rounded-full px-3 py-1 text-xs font-black shadow-[3px_3px_0_#000] bg-white'
 ---
 
 <section class="mx-auto w-full max-w-5xl px-4 py-10">
-  <div class="flex flex-col items-center text-center gap-6">
-    <!-- “Planeta” / círculo -->
+  <div class="flex flex-col items-center gap-6 text-center">
+    <!-- Planeta -->
     <div class="relative">
       <div
-        class="relative h-64 w-64 md:h-72 md:w-72 rounded-full border-4 border-white shadow-[0_10px_30px_rgba(0,0,0,0.15)] bg-linear-to-b from-sky-400 to-sky-500 overflow-hidden"
+        class="relative h-64 w-64 overflow-hidden rounded-full border-4 border-white bg-linear-to-b from-sky-400 to-sky-500 shadow-[0_10px_30px_rgba(0,0,0,0.15)] md:h-72 md:w-72"
       >
-        <!-- “Nube” simple -->
-        <div class="absolute left-8 top-16 h-16 w-28 rounded-full bg-white/95">
-        </div>
-        <div class="absolute left-20 top-10 h-14 w-24 rounded-full bg-white/95">
-        </div>
+        <!-- Nubes -->
+        {
+          clouds.map(({ cls }) => (
+            <div class={`absolute ${cls} rounded-full bg-white/95`} />
+          ))
+        }
 
+        <!-- Anillo punteado -->
         <div
-          class="absolute right-10 bottom-14 h-16 w-28 rounded-full bg-white/95"
-        >
-        </div>
-        <div
-          class="absolute right-20 bottom-9 h-14 w-24 rounded-full bg-white/95"
-        >
-        </div>
-
-        <!-- anillo punteado -->
-        <div
-          class="absolute inset-5 rounded-full border-2 border-white/70 border-dashed animate-spin-slow"
+          class="absolute inset-5 animate-spin-slow rounded-full border-2 border-dashed border-white/70"
         >
         </div>
 
-        <!-- “mascota” (tu personaje final o placeholder) -->
+        <!-- Mascota -->
         <div
-          class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border-2 border-black rounded-2xl shadow-[4px_4px_0_#000] p-3"
+          class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-black bg-white p-3 shadow-[4px_4px_0_#000]"
         >
           <img
             src={mascotImage}
@@ -55,38 +73,29 @@ const {
         </div>
       </div>
 
-      <!-- “pegatinas” -->
-      <div
-        class="absolute -left-4 top-10 bg-white border-2 border-black rounded-full px-3 py-1 text-xs font-black shadow-[3px_3px_0_#000]"
-      >
-        ¡OH!
-      </div>
-
-      <div
-        class="absolute -right-4 bottom-10 bg-[#F2F20D] border-2 border-black rounded-full px-3 py-1 text-xs font-black shadow-[3px_3px_0_#000]"
-      >
+      <!-- Pegatinas -->
+      <div class={`${stickerBase} -left-4 top-10`}>¡OH!</div>
+      <div class={`${stickerBase} -right-4 bottom-10 bg-[#F2F20D]`}>
         WOO-HOO!
       </div>
     </div>
 
-    <!-- textos -->
+    <!-- Textos -->
     <div class="space-y-2">
-      <h1 class="text-2xl md:text-3xl font-black tracking-tight italic">
+      <h1 class="text-2xl font-black italic tracking-tight md:text-3xl">
         {title}
       </h1>
-      <p class="text-sm md:text-base text-black/70 font-semibold">
-        {subtitle}
-      </p>
+      <p class="text-sm font-semibold text-black/70 md:text-base">{subtitle}</p>
     </div>
 
-    <!-- tarjeta progreso -->
+    <!-- Progreso -->
     <div
-      class="w-full max-w-xl bg-white border-2 border-black rounded-2xl shadow-[4px_4px_0_#000] p-5 text-left"
+      class="w-full max-w-xl rounded-2xl border-2 border-black bg-white p-5 text-left shadow-[4px_4px_0_#000]"
     >
       <div class="flex items-center justify-between gap-4">
         <div>
           <p
-            class="text-[11px] font-black tracking-widest uppercase text-black/70"
+            class="text-[11px] font-black uppercase tracking-widest text-black/70"
           >
             Estado del sistema
           </p>
@@ -101,7 +110,7 @@ const {
       </div>
 
       <div
-        class="mt-4 h-3 w-full rounded-full bg-black/10 border border-black/20 overflow-hidden"
+        class="mt-4 h-3 w-full overflow-hidden rounded-full border border-black/20 bg-black/10"
       >
         <div
           id="progressBar"
@@ -120,6 +129,9 @@ const {
   </div>
 
   <style>
+    /**
+     * Animación suave del anillo (10s)
+     */
     @keyframes spinSlow {
       to {
         transform: rotate(360deg);

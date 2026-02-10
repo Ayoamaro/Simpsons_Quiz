@@ -1,0 +1,79 @@
+---
+/**
+ * loading.astro
+ * ------------------------------------------------------
+ * Pantalla intermedia de cálculo:
+ * - Muestra LoadingResults (barra + %)
+ * - Espera 10s y redirige a /result?id=...
+ */
+
+export const prerender = false
+
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Navbar from '../components/Navbar.astro'
+import Footer from '../components/Footer.astro'
+import LoadingResults from '../components/LoadingResults.astro'
+---
+
+<BaseLayout title="The Simpsons Quiz">
+  <Navbar slot="nav" disableStart />
+  <main class="pb-10">
+    <LoadingResults mascotImage="/img/homer-loading.png" />
+  </main>
+  <Footer slot="footer" />
+</BaseLayout>
+
+<script is:inline>
+  /**
+   * Configuración de duración (ms)
+   */
+  const TOTAL_TIME = 10_000
+
+  const pctEl = document.getElementById('progressPct')
+  const barEl = document.getElementById('progressBar')
+
+  /**
+   * ID del ganador desde la URL del navegador
+   */
+  const winnerId = new URLSearchParams(window.location.search).get('id')
+
+  /**
+   * Actualiza UI (porcentaje + barra)
+   */
+  const setProgress = (pct) => {
+    const p = Math.max(0, Math.min(100, pct))
+    if (pctEl) pctEl.textContent = String(Math.floor(p))
+    if (barEl) barEl.style.width = `${p}%`
+  }
+
+  setProgress(0)
+
+  /**
+   * Animación de progreso basada en tiempo real
+   * (más estable y fluida que setInterval)
+   */
+  const start = performance.now()
+
+  const tick = (now) => {
+    const elapsed = now - start
+    const pct = (elapsed / TOTAL_TIME) * 100
+
+    if (pct >= 100) {
+      setProgress(100)
+
+      // Si no hay id, volvemos al quiz
+      if (!winnerId) {
+        window.location.href = '/quiz'
+        return
+      }
+
+      window.location.href = `/result?id=${encodeURIComponent(winnerId)}`
+      return
+    }
+
+    setProgress(pct)
+    requestAnimationFrame(tick)
+  }
+
+  requestAnimationFrame(tick)
+</script>
