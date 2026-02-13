@@ -8,7 +8,7 @@
   <p />
   <p>
     <b>
-      An interactive web quiz that determines which The Simpsons character you are. Built with Astro + React and deployed on Vercel.
+      An interactive web quiz that determines which The Simpsons character you are.
     </b>
   </p>
 
