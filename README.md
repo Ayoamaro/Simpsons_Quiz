@@ -85,4 +85,4 @@ The project focuses on clean component architecture, modern Astro SSR patterns, 
 
 ## 🔑 License
 
-- This project is licensed under the [MIT](https://github.com/pheralb/svgl/blob/main/LICENSE) License.
+- This project is licensed under the [MIT](https://github.com/Ayoamaro/Simpsons_Quiz/blob/master/LICENSE) License.
