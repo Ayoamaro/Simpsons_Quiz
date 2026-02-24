@@ -64,9 +64,18 @@ The project focuses on clean component architecture, modern Astro SSR patterns, 
 ```src/
 ├── components/
 │   ├── quiz/
-│   ├── Navbar.astro
+│   │   ├── QuizEngine.tsx
+│   │   └── QuizProgress.astro
+│   ├── CharacterSlider.astro
 │   ├── Footer.astro
+│   ├── HeroCard.astro
+│   ├── LoadingResults.astro
+│   ├── Navbar.astro
 │   └── ResultCard.astro
+│
+├── data/
+│   ├── characters.ts
+│   └── questions.ts
 │
 ├── layouts/
 │   ├── BaseLayout.astro
@@ -74,13 +83,15 @@ The project focuses on clean component architecture, modern Astro SSR patterns, 
 │
 ├── pages/
 │   ├── index.astro
-│   ├── quiz.astro
 │   ├── loading.astro
+│   ├── quiz.astro
 │   └── result.astro
 │
-└── data/
-    ├── questions.ts
-    └── characters.ts
+├── styles/
+│   └── global.css
+│
+└── utils/
+    └── storage.ts
 ```
 
 ## 🔑 License
